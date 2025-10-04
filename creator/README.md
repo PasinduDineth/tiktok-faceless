@@ -76,3 +76,10 @@ creator/
 - If no audio is found, the video will be silent with a default 10-second duration
 - Images are centered and scaled to cover the entire 9:16 frame
 - No image repeats - each image appears exactly once in sequence
+
+
+
+# Steps
+- Add images and audio to public folder.
+- run npm run create-subtitles "public/assets/audio/Untitled.wav" to generate the caption file
+- run npm run render to generate the video

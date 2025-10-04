@@ -1,12 +1,15 @@
-import React from "react";
-import { AbsoluteFill, Sequence, Audio, useVideoConfig, staticFile, interpolate, useCurrentFrame, Img } from "remotion";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { AbsoluteFill, Sequence, Audio, useVideoConfig, staticFile, interpolate, useCurrentFrame, Img, delayRender, continueRender, cancelRender } from "remotion";
+import { createTikTokStyleCaptions } from "@remotion/captions";
+import CaptionDisplay from "./CaptionDisplay.jsx";
+import { loadFont } from "./load-font.js";
 
 // Continuous image display that shows the correct image at each frame
 const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames }) => {
   const frame = useCurrentFrame();
   
   // *** CONFIGURABLE SETTINGS ***
-  const JITTER_SPEED = 4; // Change this value: 0.5=slow, 1=normal, 2=fast, 4=very fast
+  const JITTER_SPEED = 2; // Change this value: 0.5=slow, 1=normal, 2=fast, 4=very fast
   const JITTER_INTENSITY = 8; // Shake distance in pixels
   const ENABLE_SWIRL = false; // Enable/disable swirl transition effect (true/false)
   const SWIRL_DURATION = 15; // Duration of swirl transition in frames (0.5 seconds at 30fps)
@@ -369,6 +372,51 @@ const PanningImage = ({ src, duration, imageIndex }) => {
 
 export const Video = ({ images = [], audio = "", durationSeconds = 10 }) => {
   const { fps, durationInFrames } = useVideoConfig();
+  const [subtitles, setSubtitles] = useState([]);
+  const [handle] = useState(() => delayRender());
+
+  // How many captions should be displayed at a time?
+  // Set to 200ms to display one word at a time
+  const SWITCH_CAPTIONS_EVERY_MS = 200;
+
+  // Load captions from video.json
+  const fetchSubtitles = useCallback(async () => {
+    try {
+      await loadFont();
+      const res = await fetch(staticFile("assets/audio/Untitled.json"));
+      const data = await res.json();
+      
+      // Convert your format to Remotion's expected format
+      const convertedData = data.map(item => ({
+        text: item.text,
+        startMs: item.startMs,
+        endMs: item.endMs,
+        timestampMs: item.timestampMs,
+        confidence: item.confidence
+      }));
+      
+      setSubtitles(convertedData);
+      continueRender(handle);
+    } catch (e) {
+      console.log("No captions file found or error loading captions:", e);
+      continueRender(handle);
+    }
+  }, [handle]);
+
+  useEffect(() => {
+    fetchSubtitles();
+  }, [fetchSubtitles]);
+
+  // Create TikTok-style caption pages
+  const { pages } = useMemo(() => {
+    if (!subtitles || subtitles.length === 0) {
+      return { pages: [] };
+    }
+    return createTikTokStyleCaptions({
+      combineTokensWithinMilliseconds: SWITCH_CAPTIONS_EVERY_MS,
+      captions: subtitles,
+    });
+  }, [subtitles, SWITCH_CAPTIONS_EVERY_MS]);
 
   if (!images || images.length === 0) {
     return (
@@ -430,6 +478,34 @@ export const Video = ({ images = [], audio = "", durationSeconds = 10 }) => {
         durationInFrames={durationInFrames}
       />
       {audio ? <Audio src={staticFile(audio)} /> : null}
+      
+      {/* Render captions on top of the video */}
+      {pages.map((page, index) => {
+        const nextPage = pages[index + 1] ?? null;
+        const subtitleStartFrame = (page.startMs / 1000) * fps;
+        
+        // Use the next word's start time as the end time for this word
+        // This makes each word stay until the very moment the next word appears
+        const subtitleEndFrame = nextPage 
+          ? (nextPage.startMs / 1000) * fps 
+          : durationInFrames; // Last word stays until video ends
+          
+        const captionDurationInFrames = subtitleEndFrame - subtitleStartFrame;
+        
+        if (captionDurationInFrames <= 0) {
+          return null;
+        }
+
+        return (
+          <Sequence
+            key={index}
+            from={subtitleStartFrame}
+            durationInFrames={captionDurationInFrames}
+          >
+            <CaptionDisplay page={page} />
+          </Sequence>
+        );
+      })}
     </AbsoluteFill>
   );
 };
