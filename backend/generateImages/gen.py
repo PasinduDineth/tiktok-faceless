@@ -7,6 +7,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.keys import Keys
+from webdriver_manager.chrome import ChromeDriverManager
 import os
 import time
 
@@ -67,7 +68,7 @@ def clear_previous_image(driver, wait, retries=3):
 
 
 # 📂 Folder with your images
-INPUT_DIR = r"./processed/Download)"
+INPUT_DIR = r"./cut/Download"
 
 # 📝 Your prompt
 PROMPT = """A creepy, eerie comic-style horror illustration. Dark, unsettling, stylized artwork with exaggerated features, bold outlines, and moody shadows. The drawing should look hand-illustrated like a horror comic book panel, not realistic. Keep the scary atmosphere and unsettling tone. 
@@ -75,14 +76,12 @@ PROMPT = """A creepy, eerie comic-style horror illustration. Dark, unsettling, s
 Remove or alter any visible text, logos, or brand names on clothing, objects, or in the background. Replace them with abstract markings, symbols, or fictional designs that fit the horror theme, never with readable text. Maintain the stylized, illustrated comic aesthetic consistently.
 """
 
-# ✅ Path to ChromeDriver
-chrome_driver_path = r"C:\tools\chromedriver\chromedriver.exe"
-
 # ✅ Connect to running Chrome with debugging (must start Chrome with --remote-debugging-port=9222)
 chrome_options = Options()
 chrome_options.add_experimental_option("debuggerAddress", "127.0.0.1:9222")
 
-service = Service(chrome_driver_path)
+# ✅ Use webdriver-manager to automatically get the correct ChromeDriver version
+service = Service(ChromeDriverManager().install())
 driver = webdriver.Chrome(service=service, options=chrome_options)
 wait = WebDriverWait(driver, 60)
 
@@ -101,11 +100,13 @@ set_prompt_partial(driver, textarea, PROMPT, last_n_words=5, delay=0.05)
 time.sleep(10)
 
 # Loop through all images in folder
-for filename in os.listdir(INPUT_DIR):
-    if not filename.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
-        continue
+print(f"📁 Looking for images in: {INPUT_DIR}")
+image_files = [f for f in os.listdir(INPUT_DIR) if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))]
+print(f"🖼️ Found {len(image_files)} image files: {image_files}")
 
-    image_path = os.path.join(INPUT_DIR, filename)
+for filename in image_files:
+
+    image_path = os.path.abspath(os.path.join(INPUT_DIR, filename))
     print(f"\n🔄 Processing {image_path}")
 
     # ✅ Clear any previously uploaded image if delete button is active

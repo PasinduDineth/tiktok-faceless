@@ -48,5 +48,5 @@ def process_videos(root_dir, output_dir):
 
 # Example usage:
 root_directory = "./"      # Folder where your .mp4 files are
-output_directory = "./processed" # Where folders will be created
+output_directory = "./cut" # Where folders will be created
 process_videos(root_directory, output_directory)
