@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
 Asset Cleanup Script
-Deletes files in the following directories:
+Deletes files in the following directories (excluding .py and .js files):
 - creator/public/assets/audio
 - creator/public/assets/images  
 - creator/out
+- backend/transcribe
 """
 
 import os
@@ -29,7 +30,9 @@ def delete_files_in_directory(directory_path, description):
         print(f"⚠️  Path is not a directory: {directory_path}")
         return 0
     
-    files = [f for f in directory_path.iterdir() if f.is_file()]
+    # Get all files but exclude .py and .js files
+    files = [f for f in directory_path.iterdir() 
+             if f.is_file() and f.suffix.lower() not in ['.py', '.js']]
     
     if not files:
         print(f"✅ No files to delete in {description}")
@@ -68,6 +71,10 @@ def main():
         {
             "path": project_root / "creator" / "out",
             "description": "Output files"
+        },
+        {
+            "path": project_root / "backend" / "transcribe",
+            "description": "Transcribe files"
         }
     ]
     
@@ -79,7 +86,8 @@ def main():
     for dir_info in directories_to_clean:
         dir_path = dir_info["path"]
         if dir_path.exists() and dir_path.is_dir():
-            files = [f for f in dir_path.iterdir() if f.is_file()]
+            files = [f for f in dir_path.iterdir() 
+                    if f.is_file() and f.suffix.lower() not in ['.py', '.js']]
             total_files += len(files)
             if files:
                 print(f"\n📁 {dir_info['description']} ({dir_path}):")

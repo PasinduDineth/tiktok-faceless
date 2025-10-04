@@ -141,6 +141,14 @@ for filename in os.listdir(INPUT_DIR):
         time.sleep(1)
 
     print(f"\n✅ Finished generation for {filename}. Please download manually.")
+    
+    # ✅ Delete the processed image file
+    try:
+        os.remove(image_path)
+        print(f"🗑️ Deleted {filename} from computer.")
+    except Exception as e:
+        print(f"⚠️ Failed to delete {filename}: {e}")
+    
     time.sleep(5)
 
-print("\n🎉 All images processed!")
+print("\n🎉 All images processed and deleted from computer!")
