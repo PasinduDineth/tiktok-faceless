@@ -1,0 +1,22 @@
+# Python Requirements for Video Generator GUI
+
+# This GUI uses only Python standard library modules:
+# - tkinter (GUI framework - comes with Python)
+# - os (file operations)
+# - shutil (file copying)
+# - subprocess (running npm commands)
+# - json (JSON parsing)
+# - pathlib (path handling)
+# - threading (background rendering)
+
+# No additional pip packages required!
+
+# However, you need:
+# - Python 3.7 or higher
+# - Node.js and npm (for the Remotion rendering)
+
+# To verify your Python installation:
+# python --version
+
+# To install Node.js dependencies (from creator folder):
+# npm install

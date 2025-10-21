@@ -1,0 +1,37 @@
+[
+  {
+    "text": "Welcome",
+    "startMs": 0,
+    "endMs": 500,
+    "timestampMs": 0,
+    "confidence": 0.95
+  },
+  {
+    "text": "to",
+    "startMs": 500,
+    "endMs": 700,
+    "timestampMs": 500,
+    "confidence": 0.98
+  },
+  {
+    "text": "this",
+    "startMs": 700,
+    "endMs": 900,
+    "timestampMs": 700,
+    "confidence": 0.97
+  },
+  {
+    "text": "video",
+    "startMs": 900,
+    "endMs": 1300,
+    "timestampMs": 900,
+    "confidence": 0.96
+  },
+  {
+    "text": "tutorial",
+    "startMs": 1300,
+    "endMs": 1900,
+    "timestampMs": 1300,
+    "confidence": 0.94
+  }
+]

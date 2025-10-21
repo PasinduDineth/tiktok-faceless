@@ -2,6 +2,26 @@
 
 A Remotion-based video generator that creates 9:16 aspect ratio videos from sequential images and audio.
 
+## 🎨 NEW: Python GUI Available!
+
+**Easy-to-use graphical interface for video generation!**
+
+- 📁 Browse and select audio files
+- 🖼️ Import multiple images at once
+- 📝 Add caption files (optional)
+- 🎬 One-click rendering
+- 💾 Save videos anywhere
+- 🧹 Automatic cleanup
+
+**Get Started:** See the [GUI folder](./GUI/) or run:
+```bash
+python GUI/video_generator_gui.py
+```
+
+📖 **Full Documentation:** [GUI/README.md](./GUI/README.md)
+
+---
+
 ## Features
 
 - **Sequential Image Display**: Images named `image_1.jpg`, `image_2.jpg`, etc. are displayed in numerical order
@@ -24,7 +44,30 @@ npm install
 
 ## Usage
 
-Generate your video:
+### Option 1: GUI (Recommended for Beginners)
+
+Launch the graphical interface:
+```bash
+# Windows
+python GUI/video_generator_gui.py
+# Or double-click GUI/start_gui.bat
+
+# Mac/Linux
+python3 GUI/video_generator_gui.py
+```
+
+Then:
+1. Browse and select your audio file
+2. Browse and select multiple images
+3. Optionally add a caption JSON file
+4. Click "Render Video"
+5. Save your video when prompted
+
+See [GUI/QUICKSTART.md](./GUI/QUICKSTART.md) for detailed instructions.
+
+### Option 2: Command Line (Original Method)
+
+Manually place files in assets folders, then generate your video:
 ```bash
 npm run render
 ```
