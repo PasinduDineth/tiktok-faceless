@@ -5,14 +5,17 @@ import CaptionDisplay from "./CaptionDisplay.jsx";
 import { loadFont } from "./load-font.js";
 
 // Continuous image display that shows the correct image at each frame
-const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames }) => {
+const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames, fps }) => {
   const frame = useCurrentFrame();
   
   // *** CONFIGURABLE SETTINGS ***
-  const JITTER_SPEED = 2; // Change this value: 0.5=slow, 1=normal, 2=fast, 4=very fast
-  const JITTER_INTENSITY = 8; // Shake distance in pixels
+  const JITTER_SPEED = 4; // Change this value: 0.5=slow, 1=normal, 2=fast, 4=very fast
+  const JITTER_INTENSITY = 3; // Shake distance in pixels
   const ENABLE_SWIRL = false; // Enable/disable swirl transition effect (true/false)
   const SWIRL_DURATION = 15; // Duration of swirl transition in frames (0.5 seconds at 30fps)
+  const OVERLAY_BLEND = 0.4; // Overlay opacity: 0=invisible, 0.5=half blend, 1=fully visible (0.0-1.0)
+  const ANIMATED_OVERLAY_BLEND = 0.2; // Animated overlay opacity (0.0-1.0)
+  const ANIMATED_OVERLAY_CYCLE_SECONDS = 2; // Time in seconds for one complete cycle (top to bottom)
   
   // Find which image should be displayed at current frame
   let cumulative = 0;
@@ -115,6 +118,22 @@ const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames }) =>
   const finalTranslateX = translateX + jitterX;
   const finalTranslateY = translateY + jitterY;
   
+  // Animated overlay movement (top to bottom continuously)
+  // Calculate how many frames one complete cycle should take
+  const framesPerCycle = ANIMATED_OVERLAY_CYCLE_SECONDS * fps;
+  
+  // Calculate progress within current cycle (0 to 1, loops infinitely)
+  const cycleProgress = (frame % framesPerCycle) / framesPerCycle;
+  
+  // Move from 0% to 100% to create seamless loop
+  // The overlay will be positioned using height: 200% to cover the gap
+  const animatedOverlayY = interpolate(
+    cycleProgress,
+    [0, 1],
+    [0, 100],
+    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+  );
+  
   return (
     <AbsoluteFill style={{ backgroundColor: "black" }}>
       <Img
@@ -127,6 +146,53 @@ const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames }) =>
           position: "absolute",
           top: 0,
           left: 0,
+        }}
+      />
+      {/* Overlay image with blend effect */}
+      <Img
+        src={staticFile("images/overly.jpg")}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          opacity: OVERLAY_BLEND,
+          mixBlendMode: "normal", // Can be changed to: multiply, screen, overlay, etc.
+          pointerEvents: "none",
+        }}
+      />
+      {/* Animated overlay moving from top to bottom - First instance */}
+      <Img
+        src={staticFile("images/animatedOverley.png")}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          opacity: ANIMATED_OVERLAY_BLEND,
+          mixBlendMode: "normal", // Can be changed to: multiply, screen, overlay, etc.
+          pointerEvents: "none",
+          transform: `translateY(${animatedOverlayY - 100}%)`,
+        }}
+      />
+      {/* Animated overlay moving from top to bottom - Second instance for seamless loop */}
+      <Img
+        src={staticFile("images/animatedOverley.png")}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          opacity: ANIMATED_OVERLAY_BLEND,
+          mixBlendMode: "normal", // Can be changed to: multiply, screen, overlay, etc.
+          pointerEvents: "none",
+          transform: `translateY(${animatedOverlayY}%)`,
         }}
       />
     </AbsoluteFill>
@@ -476,6 +542,7 @@ export const Video = ({ images = [], audio = "", durationSeconds = 10 }) => {
         images={images} 
         frameDurations={frameDurations}
         durationInFrames={durationInFrames}
+        fps={fps}
       />
       {audio ? <Audio src={staticFile(audio)} /> : null}
       
