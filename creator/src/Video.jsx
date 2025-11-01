@@ -8,14 +8,18 @@ import { loadFont } from "./load-font.js";
 const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames, fps }) => {
   const frame = useCurrentFrame();
   
-  // *** CONFIGURABLE SETTINGS ***
-  const JITTER_SPEED = 4; // Change this value: 0.5=slow, 1=normal, 2=fast, 4=very fast
-  const JITTER_INTENSITY = 3; // Shake distance in pixels
-  const ENABLE_SWIRL = false; // Enable/disable swirl transition effect (true/false)
-  const SWIRL_DURATION = 15; // Duration of swirl transition in frames (0.5 seconds at 30fps)
-  const OVERLAY_BLEND = 0.4; // Overlay opacity: 0=invisible, 0.5=half blend, 1=fully visible (0.0-1.0)
-  const ANIMATED_OVERLAY_BLEND = 0.2; // Animated overlay opacity (0.0-1.0)
-  const ANIMATED_OVERLAY_CYCLE_SECONDS = 2; // Time in seconds for one complete cycle (top to bottom)
+  // *** CONFIGURABLE SHAKE SETTINGS ***
+  // SHAKE_SPEED OPTIONS:
+  // 0.1 = ultra slow, 0.5 = slow, 1 = normal, 2 = fast, 
+  // 4 = very fast, 6 = super fast, 8 = extreme, 10 = insane, 15+ = crazy fast
+  const SHAKE_SPEED = 6; // Change this value for different speeds
+  const SHAKE_INTENSITY = 1; // Shake distance in pixels: 0.5=very subtle, 1=subtle, 2=moderate, 3=noticeable, 5=intense
+  
+  // *** KEN BURNS EFFECT SETTINGS ***
+  const ENABLE_KEN_BURNS = true; // Enable/disable Ken Burns effect
+  const KEN_BURNS_SCALE_MIN = 1.0; // Minimum scale (1.0 = normal size)
+  const KEN_BURNS_SCALE_MAX = 1.2; // Maximum scale (1.2 = 20% zoom)
+  const KEN_BURNS_PAN_DISTANCE = 40; // Maximum pan distance in pixels
   
   // Find which image should be displayed at current frame
   let cumulative = 0;
@@ -35,122 +39,102 @@ const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames, fps 
   const currentDuration = frameDurations[currentImageIndex];
   const localFrame = frame - imageStartFrame; // Frame within this image's duration
   
-  // Pan directions
-  const panTypes = [
-    { name: 'bottom', startX: 0, startY: 45, endX: 0, endY: 0 },
-    { name: 'top', startX: 0, startY: -45, endX: 0, endY: 0 },
-    { name: 'left', startX: -50, startY: 0, endX: 0, endY: 0 },
-    { name: 'right', startX: 50, startY: 0, endX: 0, endY: 0 },
-    { name: 'bottom-left', startX: -40, startY: 40, endX: 0, endY: 0 },
-    { name: 'bottom-right', startX: 40, startY: 40, endX: 0, endY: 0 },
-    { name: 'top-left', startX: -40, startY: -40, endX: 0, endY: 0 },
-    { name: 'top-right', startX: 40, startY: -40, endX: 0, endY: 0 },
-  ];
+  // Determine BG and FG image paths
+  // Remove _FG or _BG from the filename to get base name
+  let baseName = currentImage.replace(/_FG(\.[^.]+)$/, '$1').replace(/_BG(\.[^.]+)$/, '$1');
   
-  const panType = panTypes[currentImageIndex % panTypes.length];
-  const startScale = 1.05;
-  const endScale = 1.0;
-  const panDuration = Math.floor(currentDuration * 0.6);
+  // Get file extension
+  const extension = currentImage.match(/\.[^.]+$/)?.[0] || '.png';
   
-  // Calculate transforms based on local frame
-  const translateX = interpolate(
-    localFrame,
-    [0, panDuration],
-    [panType.startX, panType.endX],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
+  // Remove extension from base name if it was added
+  baseName = baseName.replace(extension, '');
   
-  const translateY = interpolate(
-    localFrame,
-    [0, panDuration],
-    [panType.startY, panType.endY],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
+  // Construct both image paths
+  const bgImage = `${baseName}_BG${extension}`;
+  const fgImage = `${baseName}_FG${extension}`;
   
-  const scale = interpolate(
-    localFrame,
-    [0, panDuration],
-    [startScale, endScale],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
+  // *** KEN BURNS EFFECT CALCULATION ***
+  let kenBurnsPanX = 0;
+  let kenBurnsPanY = 0;
+  let kenBurnsScale = 1;
   
-  // Add swirl/spiral transition at the beginning of each image
-  let swirlRotation = 0;
-  let swirlScale = 1;
-  if (ENABLE_SWIRL && localFrame < SWIRL_DURATION) {
-    // Swirl rotation: starts at 720 degrees and goes to 0
-    swirlRotation = interpolate(
+  if (ENABLE_KEN_BURNS) {
+    // Create deterministic but varied random values for each image
+    const seed = currentImageIndex * 12345;
+    const random1 = (Math.sin(seed * 0.1) + 1) / 2;
+    const random2 = (Math.sin(seed * 0.2) + 1) / 2;
+    const random3 = (Math.sin(seed * 0.3) + 1) / 2;
+    const random4 = (Math.sin(seed * 0.4) + 1) / 2;
+    const random5 = (Math.sin(seed * 0.5) + 1) / 2;
+    const random6 = (Math.sin(seed * 0.6) + 1) / 2;
+    
+    // Determine random start and end scales
+    const startScale = KEN_BURNS_SCALE_MIN + (random1 * (KEN_BURNS_SCALE_MAX - KEN_BURNS_SCALE_MIN));
+    const endScale = KEN_BURNS_SCALE_MIN + (random2 * (KEN_BURNS_SCALE_MAX - KEN_BURNS_SCALE_MIN));
+    
+    // Random pan direction and distance
+    const startX = (random3 - 0.5) * 2 * KEN_BURNS_PAN_DISTANCE;
+    const startY = (random4 - 0.5) * 2 * KEN_BURNS_PAN_DISTANCE;
+    const endX = (random5 - 0.5) * 2 * KEN_BURNS_PAN_DISTANCE;
+    const endY = (random6 - 0.5) * 2 * KEN_BURNS_PAN_DISTANCE;
+    
+    // Interpolate over the entire image duration
+    kenBurnsScale = interpolate(
       localFrame,
-      [0, SWIRL_DURATION],
-      [720, 0],
+      [0, currentDuration - 1],
+      [startScale, endScale],
       { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
     );
     
-    // Swirl scale: starts small and grows to normal
-    swirlScale = interpolate(
+    kenBurnsPanX = interpolate(
       localFrame,
-      [0, SWIRL_DURATION],
-      [0.3, 1],
+      [0, currentDuration - 1],
+      [startX, endX],
+      { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
+    );
+    
+    kenBurnsPanY = interpolate(
+      localFrame,
+      [0, currentDuration - 1],
+      [startY, endY],
       { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
     );
   }
   
-  // Add visible jitter/shake effect throughout the entire image duration
-  const jitterIntensity = JITTER_INTENSITY; // Use configurable intensity
-  const jitterSpeed = JITTER_SPEED; // Use configurable speed
+  // Calculate shake effect for foreground layer
+  // Create pseudo-random but deterministic shake based on frame and image index
+  const shakeSeedX = (frame + currentImageIndex * 1000) * SHAKE_SPEED;
+  const shakeSeedY = (frame + currentImageIndex * 1500 + 500) * SHAKE_SPEED;
   
-  // Create pseudo-random but deterministic jitter based on frame and image index
-  const jitterSeedX = (frame + currentImageIndex * 1000) * jitterSpeed;
-  const jitterSeedY = (frame + currentImageIndex * 1500 + 500) * jitterSpeed;
-  
-  // Generate more noticeable random-like movement using sine waves with different frequencies
-  const jitterX = 
-    Math.sin(jitterSeedX * 0.3) * jitterIntensity * 0.7 +
-    Math.sin(jitterSeedX * 0.7) * jitterIntensity * 0.2 +
-    Math.sin(jitterSeedX * 1.3) * jitterIntensity * 0.1;
+  // Generate smooth shake movement using sine waves with different frequencies
+  const shakeX = 
+    Math.sin(shakeSeedX * 0.3) * SHAKE_INTENSITY * 0.7 +
+    Math.sin(shakeSeedX * 0.7) * SHAKE_INTENSITY * 0.2 +
+    Math.sin(shakeSeedX * 1.3) * SHAKE_INTENSITY * 0.1;
     
-  const jitterY = 
-    Math.sin(jitterSeedY * 0.35) * jitterIntensity * 0.7 +
-    Math.sin(jitterSeedY * 0.8) * jitterIntensity * 0.2 +
-    Math.sin(jitterSeedY * 1.1) * jitterIntensity * 0.1;
-  
-  // Combine panning and jitter transforms
-  const finalTranslateX = translateX + jitterX;
-  const finalTranslateY = translateY + jitterY;
-  
-  // Animated overlay movement (top to bottom continuously)
-  // Calculate how many frames one complete cycle should take
-  const framesPerCycle = ANIMATED_OVERLAY_CYCLE_SECONDS * fps;
-  
-  // Calculate progress within current cycle (0 to 1, loops infinitely)
-  const cycleProgress = (frame % framesPerCycle) / framesPerCycle;
-  
-  // Move from 0% to 100% to create seamless loop
-  // The overlay will be positioned using height: 200% to cover the gap
-  const animatedOverlayY = interpolate(
-    cycleProgress,
-    [0, 1],
-    [0, 100],
-    { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }
-  );
+  const shakeY = 
+    Math.sin(shakeSeedY * 0.35) * SHAKE_INTENSITY * 0.7 +
+    Math.sin(shakeSeedY * 0.8) * SHAKE_INTENSITY * 0.2 +
+    Math.sin(shakeSeedY * 1.1) * SHAKE_INTENSITY * 0.1;
   
   return (
     <AbsoluteFill style={{ backgroundColor: "black" }}>
+      {/* Background Layer - With Ken Burns Effect */}
       <Img
-        src={staticFile(currentImage)}
+        src={staticFile(bgImage)}
         style={{
           width: "100%",
           height: "100%",
           objectFit: "cover",
-          transform: `translate(${finalTranslateX}px, ${finalTranslateY}px) scale(${scale * swirlScale}) rotate(${swirlRotation}deg)`,
           position: "absolute",
           top: 0,
           left: 0,
+          transform: `translate(${kenBurnsPanX}px, ${kenBurnsPanY}px) scale(${kenBurnsScale})`,
         }}
       />
-      {/* Overlay image with blend effect */}
+      {/* Foreground Layer - With Ken Burns + Shake Effect */}
       <Img
-        src={staticFile("images/overly.jpg")}
+        src={staticFile(fgImage)}
         style={{
           width: "100%",
           height: "100%",
@@ -158,41 +142,7 @@ const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames, fps 
           position: "absolute",
           top: 0,
           left: 0,
-          opacity: OVERLAY_BLEND,
-          mixBlendMode: "normal", // Can be changed to: multiply, screen, overlay, etc.
-          pointerEvents: "none",
-        }}
-      />
-      {/* Animated overlay moving from top to bottom - First instance */}
-      <Img
-        src={staticFile("images/animatedOverley.png")}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          position: "absolute",
-          top: 0,
-          left: 0,
-          opacity: ANIMATED_OVERLAY_BLEND,
-          mixBlendMode: "normal", // Can be changed to: multiply, screen, overlay, etc.
-          pointerEvents: "none",
-          transform: `translateY(${animatedOverlayY - 100}%)`,
-        }}
-      />
-      {/* Animated overlay moving from top to bottom - Second instance for seamless loop */}
-      <Img
-        src={staticFile("images/animatedOverley.png")}
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          position: "absolute",
-          top: 0,
-          left: 0,
-          opacity: ANIMATED_OVERLAY_BLEND,
-          mixBlendMode: "normal", // Can be changed to: multiply, screen, overlay, etc.
-          pointerEvents: "none",
-          transform: `translateY(${animatedOverlayY}%)`,
+          transform: `translate(${kenBurnsPanX + shakeX}px, ${kenBurnsPanY + shakeY}px) scale(${kenBurnsScale})`,
         }}
       />
     </AbsoluteFill>

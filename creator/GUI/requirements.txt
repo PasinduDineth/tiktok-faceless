@@ -1,6 +1,6 @@
 # Python Requirements for Video Generator GUI
 
-# This GUI uses only Python standard library modules:
+# Core GUI uses only Python standard library modules:
 # - tkinter (GUI framework - comes with Python)
 # - os (file operations)
 # - shutil (file copying)
@@ -9,9 +9,15 @@
 # - pathlib (path handling)
 # - threading (background rendering)
 
-# No additional pip packages required!
+# Image processing dependencies (for FG/BG separation):
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
 
-# However, you need:
+# To install all dependencies:
+# pip install -r requirements.txt
+
+# You also need:
 # - Python 3.7 or higher
 # - Node.js and npm (for the Remotion rendering)
 

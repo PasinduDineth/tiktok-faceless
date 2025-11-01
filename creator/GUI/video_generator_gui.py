@@ -288,13 +288,54 @@ class VideoGeneratorGUI:
                 shutil.copy2(self.audio_file, dest)
                 self.log(f"Copied audio to: {dest}")
             
-            # Copy images with numbered naming (image_1.jpg, image_2.jpg, etc.)
+            # Process and copy images with FG/BG separation
             if self.image_files:
-                for idx, img_file in enumerate(self.image_files, start=1):
-                    ext = os.path.splitext(img_file)[1]
-                    dest = self.images_path / f"image_{idx}{ext}"
-                    shutil.copy2(img_file, dest)
-                self.log(f"Copied {len(self.image_files)} images to assets")
+                self.log(f"Processing {len(self.image_files)} images for FG/BG separation...")
+                
+                # Import bg_simple processor
+                import sys
+                gui_dir = Path(__file__).parent
+                sys.path.insert(0, str(gui_dir))
+                
+                try:
+                    from bg_simple import process_image
+                    
+                    for idx, img_file in enumerate(self.image_files, start=1):
+                        self.log(f"Processing image {idx}/{len(self.image_files)}: {os.path.basename(img_file)}")
+                        
+                        # Get file extension
+                        ext = os.path.splitext(img_file)[1]
+                        base_name = f"image_{idx}"
+                        
+                        # First copy original to temp location
+                        temp_input = self.images_path / f"{base_name}{ext}"
+                        shutil.copy2(img_file, temp_input)
+                        
+                        # Process with bg_simple to generate FG and BG
+                        fg_file, bg_file = process_image(
+                            str(temp_input), 
+                            str(self.images_path),
+                            verbose=False
+                        )
+                        
+                        if fg_file and bg_file:
+                            self.log(f"  ✓ Generated {os.path.basename(fg_file)} and {os.path.basename(bg_file)}")
+                            # Remove the temporary original file
+                            temp_input.unlink()
+                        else:
+                            self.log(f"  ⚠ Failed to process, keeping original")
+                    
+                    self.log(f"Completed processing {len(self.image_files)} images")
+                    
+                except ImportError as e:
+                    self.log(f"Warning: Could not import bg_simple module: {e}")
+                    self.log("Copying images without FG/BG separation...")
+                    # Fallback: just copy images normally
+                    for idx, img_file in enumerate(self.image_files, start=1):
+                        ext = os.path.splitext(img_file)[1]
+                        dest = self.images_path / f"image_{idx}{ext}"
+                        shutil.copy2(img_file, dest)
+                    self.log(f"Copied {len(self.image_files)} images to assets")
             
             # Copy caption file - always use "Untitled.json" to match Video.jsx expectation
             if self.caption_file:
