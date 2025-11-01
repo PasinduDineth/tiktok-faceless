@@ -13,7 +13,7 @@ const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames, fps 
   // 0.1 = ultra slow, 0.5 = slow, 1 = normal, 2 = fast, 
   // 4 = very fast, 6 = super fast, 8 = extreme, 10 = insane, 15+ = crazy fast
   const SHAKE_SPEED = 6; // Change this value for different speeds
-  const SHAKE_INTENSITY = 1; // Shake distance in pixels: 0.5=very subtle, 1=subtle, 2=moderate, 3=noticeable, 5=intense
+  const SHAKE_INTENSITY = 2; // Shake distance in pixels: 0.5=very subtle, 1=subtle, 2=moderate, 3=noticeable, 5=intense
   
   // *** KEN BURNS EFFECT SETTINGS ***
   const ENABLE_KEN_BURNS = true; // Enable/disable Ken Burns effect
@@ -119,7 +119,7 @@ const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames, fps 
   
   return (
     <AbsoluteFill style={{ backgroundColor: "black" }}>
-      {/* Background Layer - With Ken Burns Effect */}
+      {/* Background Layer - Original Image with Ken Burns Effect */}
       <Img
         src={staticFile(bgImage)}
         style={{
@@ -132,7 +132,7 @@ const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames, fps 
           transform: `translate(${kenBurnsPanX}px, ${kenBurnsPanY}px) scale(${kenBurnsScale})`,
         }}
       />
-      {/* Foreground Layer - With Ken Burns + Shake Effect */}
+      {/* Foreground Layer - Extracted foreground with Ken Burns + Shake Effect */}
       <Img
         src={staticFile(fgImage)}
         style={{

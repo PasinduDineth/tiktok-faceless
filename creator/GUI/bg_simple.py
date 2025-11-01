@@ -152,20 +152,19 @@ def process_image(input_path, output_dir=None, verbose=True):
     if verbose:
         print(f"   ✓ {os.path.basename(fg_filename)}")
     
-    # Background (inverted)
-    bg_mask = 255 - foreground_mask
-    bg_rgba = np.dstack((img_rgb, bg_mask))
+    # Keep original image as background (no alpha channel modification)
     bg_filename = os.path.join(output_dir, f"{base_name}_BG.png")
-    Image.fromarray(bg_rgba).save(bg_filename)
+    Image.fromarray(img_rgb).save(bg_filename)
     if verbose:
-        print(f"   ✓ {os.path.basename(bg_filename)}")
+        print(f"   ✓ {os.path.basename(bg_filename)} (original)")
     
     if verbose:
         print("\n" + "="*60)
         print("✅ DONE!")
         print("="*60)
         final_fg = (np.sum(foreground_mask > 127) / (h*w)) * 100
-        print(f"\n📊 Result: {final_fg:.1f}% foreground / {100-final_fg:.1f}% background")
+        print(f"\n📊 Result: {final_fg:.1f}% foreground extracted")
+        print(f"Background: Original image preserved")
         
         if final_fg < 20:
             print(f"\n⚠️  LOW FOREGROUND ({final_fg:.1f}%) - Try:")
