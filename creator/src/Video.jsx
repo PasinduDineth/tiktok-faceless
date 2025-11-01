@@ -390,6 +390,11 @@ export const Video = ({ images = [], audio = "", durationSeconds = 10 }) => {
   const { fps, durationInFrames } = useVideoConfig();
   const [subtitles, setSubtitles] = useState([]);
   const [handle] = useState(() => delayRender());
+  const [bgMusicFile, setBgMusicFile] = useState(null);
+
+  // *** AUDIO VOLUME SETTINGS ***
+  const MAIN_AUDIO_VOLUME = 1.0; // Volume of main narration: 0.5=half, 1.0=full volume
+  const BG_MUSIC_VOLUME = 0.1; // Volume of background music: 0.0=silent, 0.1=quiet, 0.2=low, 0.3=moderate, 0.5=balanced, 1.0=full volume
 
   // How many captions should be displayed at a time?
   // Set to 200ms to display one word at a time
@@ -419,9 +424,34 @@ export const Video = ({ images = [], audio = "", durationSeconds = 10 }) => {
     }
   }, [handle]);
 
+  // Check if background music exists
+  const checkBgMusic = useCallback(async () => {
+    try {
+      // Try common audio formats
+      const formats = ['.mp3', '.wav', '.m4a', '.aac', '.flac'];
+      for (const format of formats) {
+        try {
+          const url = staticFile(`assets/audio/bgmusic${format}`);
+          const response = await fetch(url, { method: 'HEAD' });
+          if (response.ok) {
+            setBgMusicFile(`assets/audio/bgmusic${format}`);
+            console.log(`Background music found: bgmusic${format}`);
+            return;
+          }
+        } catch (e) {
+          // Continue to next format
+        }
+      }
+      console.log("No background music file found");
+    } catch (e) {
+      console.log("Error checking background music:", e);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSubtitles();
-  }, [fetchSubtitles]);
+    checkBgMusic();
+  }, [fetchSubtitles, checkBgMusic]);
 
   // Create TikTok-style caption pages
   const { pages } = useMemo(() => {
@@ -494,7 +524,17 @@ export const Video = ({ images = [], audio = "", durationSeconds = 10 }) => {
         durationInFrames={durationInFrames}
         fps={fps}
       />
-      {audio ? <Audio src={staticFile(audio)} /> : null}
+      {/* Main narration audio - Full volume */}
+      {audio ? <Audio src={staticFile(audio)} volume={MAIN_AUDIO_VOLUME} /> : null}
+      
+      {/* Background music - plays at lower volume throughout the video */}
+      {bgMusicFile ? (
+        <Audio 
+          src={staticFile(bgMusicFile)}
+          volume={BG_MUSIC_VOLUME}
+          loop
+        />
+      ) : null}
       
       {/* Render captions on top of the video */}
       {pages.map((page, index) => {

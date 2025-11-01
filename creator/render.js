@@ -33,12 +33,14 @@ if (images.length === 0) {
   }
 }
 
-// Pick first audio and read duration
+// Pick first audio and read duration (exclude bgmusic files)
 let audio = ""; // absolute path to pass into Remotion
 let audioAbsolute = ""; // absolute path used for metadata reading
 let audioDurationSeconds = 0;
 if (fs.existsSync(audioDir)) {
-  const auds = fs.readdirSync(audioDir).filter((f) => /\.(mp3|wav|m4a|aac|flac)$/i.test(f));
+  const auds = fs.readdirSync(audioDir)
+    .filter((f) => /\.(mp3|wav|m4a|aac|flac)$/i.test(f))
+    .filter((f) => !f.startsWith('bgmusic')); // Exclude background music files
   if (auds.length > 0) {
     audioAbsolute = path.join(audioDir, auds[0]);
   }

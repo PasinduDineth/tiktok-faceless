@@ -53,6 +53,7 @@ class VideoGeneratorGUI:
         
         # Variables to store file paths
         self.audio_file = None
+        self.bg_music_file = None
         self.image_files = []
         self.caption_file = None
         self.is_rendering = False
@@ -87,9 +88,27 @@ class VideoGeneratorGUI:
         
         audio_frame.columnconfigure(0, weight=1)
         
+        # Background Music Section
+        bg_music_frame = ttk.LabelFrame(main_frame, text="Background Music (Optional)", padding="10")
+        bg_music_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        
+        self.bg_music_label = ttk.Label(bg_music_frame, text="No background music selected", 
+                                      foreground=COLOR_UNSELECTED)
+        self.bg_music_label.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
+        
+        bg_music_btn = ttk.Button(bg_music_frame, text="Browse Music", 
+                               command=self.browse_bg_music)
+        bg_music_btn.grid(row=0, column=1)
+        
+        clear_bg_music_btn = ttk.Button(bg_music_frame, text="Clear", 
+                                     command=self.clear_bg_music)
+        clear_bg_music_btn.grid(row=0, column=2, padx=(5, 0))
+        
+        bg_music_frame.columnconfigure(0, weight=1)
+        
         # Images Section
         images_frame = ttk.LabelFrame(main_frame, text="Images", padding="10")
-        images_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        images_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
         
         self.images_label = ttk.Label(images_frame, text="No images selected", 
                                        foreground=COLOR_UNSELECTED)
@@ -121,7 +140,7 @@ class VideoGeneratorGUI:
         # Caption File Section
         caption_frame = ttk.LabelFrame(main_frame, text="Caption File (Optional)", 
                                        padding="10")
-        caption_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        caption_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
         
         self.caption_label = ttk.Label(caption_frame, text="No caption file selected", 
                                         foreground=COLOR_UNSELECTED)
@@ -139,7 +158,7 @@ class VideoGeneratorGUI:
         
         # Progress Section
         progress_frame = ttk.Frame(main_frame)
-        progress_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=20)
+        progress_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=20)
         
         self.progress_label = ttk.Label(progress_frame, text="Ready to render", 
                                         foreground=COLOR_READY)
@@ -152,11 +171,11 @@ class VideoGeneratorGUI:
         self.render_btn = ttk.Button(main_frame, text="Render Video", 
                                      command=self.render_video, 
                                      style="Accent.TButton")
-        self.render_btn.grid(row=5, column=0, columnspan=3, pady=10)
+        self.render_btn.grid(row=6, column=0, columnspan=3, pady=10)
         
         # Status/Log Section
         log_frame = ttk.LabelFrame(main_frame, text="Status Log", padding="10")
-        log_frame.grid(row=6, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), 
+        log_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), 
                        pady=5)
         
         self.log_text = tk.Text(log_frame, height=LOG_TEXT_HEIGHT, wrap=tk.WORD)
@@ -168,7 +187,7 @@ class VideoGeneratorGUI:
         self.log_text.config(yscrollcommand=log_scrollbar.set)
         
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(6, weight=1)
+        main_frame.rowconfigure(7, weight=1)
         
         self.log("Application started successfully")
         self.log(f"Project root: {self.project_root}")
@@ -195,6 +214,23 @@ class VideoGeneratorGUI:
         self.audio_file = None
         self.audio_label.config(text="No audio file selected", foreground=COLOR_UNSELECTED)
         self.log("Audio cleared")
+    
+    def browse_bg_music(self):
+        """Browse for background music file"""
+        filename = filedialog.askopenfilename(
+            title="Select Background Music File",
+            filetypes=AUDIO_EXTENSIONS
+        )
+        if filename:
+            self.bg_music_file = filename
+            self.bg_music_label.config(text=os.path.basename(filename), foreground=COLOR_SELECTED)
+            self.log(f"Background music selected: {os.path.basename(filename)}")
+    
+    def clear_bg_music(self):
+        """Clear selected background music"""
+        self.bg_music_file = None
+        self.bg_music_label.config(text="No background music selected", foreground=COLOR_UNSELECTED)
+        self.log("Background music cleared")
     
     def browse_images(self):
         """Browse for multiple images"""
@@ -336,6 +372,12 @@ class VideoGeneratorGUI:
                         dest = self.images_path / f"image_{idx}{ext}"
                         shutil.copy2(img_file, dest)
                     self.log(f"Copied {len(self.image_files)} images to assets")
+            
+            # Copy background music file
+            if self.bg_music_file:
+                dest = self.audio_path / f"bgmusic{os.path.splitext(self.bg_music_file)[1]}"
+                shutil.copy2(self.bg_music_file, dest)
+                self.log(f"Copied background music to: {dest}")
             
             # Copy caption file - always use "Untitled.json" to match Video.jsx expectation
             if self.caption_file:
