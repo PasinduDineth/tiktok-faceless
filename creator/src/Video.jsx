@@ -4,6 +4,70 @@ import { createTikTokStyleCaptions } from "@remotion/captions";
 import CaptionDisplay from "./CaptionDisplay.jsx";
 import { loadFont } from "./load-font.js";
 
+// TV Noise Effect Component
+const TVNoiseEffect = ({ intensity = 0.3, dotCount = 100 }) => {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+  
+  // Generate random dots for this frame
+  // Use frame as seed for deterministic randomness
+  const dots = useMemo(() => {
+    const dotsArray = [];
+    const seed = frame * 12345.6789; // Unique seed per frame
+    
+    for (let i = 0; i < dotCount; i++) {
+      // Create pseudo-random values using sine waves with different seeds
+      const random1 = Math.abs(Math.sin(seed + i * 123.456));
+      const random2 = Math.abs(Math.sin(seed + i * 789.012));
+      const random3 = Math.abs(Math.sin(seed + i * 345.678));
+      const random4 = Math.abs(Math.sin(seed + i * 901.234));
+      
+      // Random position
+      const x = random1 * 100; // percentage
+      const y = random2 * 100; // percentage
+      
+      // Random size between 2 and 8 pixels
+      const size = 2 + random3 * 6;
+      
+      // Random opacity (some dots brighter than others)
+      const opacity = 0.2 + random4 * 0.8;
+      
+      dotsArray.push({
+        x,
+        y,
+        size,
+        opacity: opacity * intensity, // Apply overall intensity
+      });
+    }
+    
+    return dotsArray;
+  }, [frame, dotCount, intensity]);
+  
+  return (
+    <AbsoluteFill
+      style={{
+        pointerEvents: 'none',
+        mixBlendMode: 'screen', // Blend mode for authentic TV noise look
+      }}
+    >
+      {dots.map((dot, index) => (
+        <div
+          key={index}
+          style={{
+            position: 'absolute',
+            left: `${dot.x}%`,
+            top: `${dot.y}%`,
+            width: `${dot.size}px`,
+            height: `${dot.size}px`,
+            borderRadius: '50%',
+            backgroundColor: `rgba(255, 255, 255, ${dot.opacity})`,
+          }}
+        />
+      ))}
+    </AbsoluteFill>
+  );
+};
+
 // Continuous image display that shows the correct image at each frame
 const ContinuousImageDisplay = ({ images, frameDurations, durationInFrames, fps }) => {
   const frame = useCurrentFrame();
@@ -524,6 +588,15 @@ export const Video = ({ images = [], audio = "", durationSeconds = 10 }) => {
         durationInFrames={durationInFrames}
         fps={fps}
       />
+      
+      {/* Color Flattening Overlay - Reduces color vibrancy */}
+      <AbsoluteFill
+        style={{
+          backgroundColor: 'rgba(0, 0, 0, 0.2)', // Semi-transparent black overlay
+          pointerEvents: 'none',
+        }}
+      />
+      
       {/* Main narration audio - Full volume */}
       {audio ? <Audio src={staticFile(audio)} volume={MAIN_AUDIO_VOLUME} /> : null}
       
@@ -563,6 +636,9 @@ export const Video = ({ images = [], audio = "", durationSeconds = 10 }) => {
           </Sequence>
         );
       })}
+      
+      {/* TV Noise Effect - On top of everything */}
+      <TVNoiseEffect intensity={0.3} dotCount={100} />
     </AbsoluteFill>
   );
 };
