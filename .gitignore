@@ -52,6 +52,13 @@ tmp/
 *.webm
 *.flv
 
+# Exception: Include background music files
+!creator/public/assets/bg/*.mp3
+!creator/public/assets/bg/*.wav
+!creator/public/assets/bg/*.m4a
+!creator/public/assets/bg/*.flac
+!creator/public/assets/bg/*.ogg
+
 # Images (uncomment if you want to ignore images)
 # *.jpg
 # *.jpeg

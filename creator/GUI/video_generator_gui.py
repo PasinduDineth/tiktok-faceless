@@ -6,6 +6,7 @@ import subprocess
 import json
 from pathlib import Path
 import threading
+import random
 
 # Try to import config, use defaults if not available
 try:
@@ -53,10 +54,12 @@ class VideoGeneratorGUI:
         
         # Variables to store file paths
         self.audio_file = None
-        self.bg_music_file = None
         self.image_files = []
         self.caption_file = None
         self.is_rendering = False
+        
+        # Path to background music folder
+        self.bg_music_path = self.assets_path / "bg"
         
         self.setup_ui()
         
@@ -87,24 +90,6 @@ class VideoGeneratorGUI:
         clear_audio_btn.grid(row=0, column=2, padx=(5, 0))
         
         audio_frame.columnconfigure(0, weight=1)
-        
-        # Background Music Section
-        bg_music_frame = ttk.LabelFrame(main_frame, text="Background Music (Optional)", padding="10")
-        bg_music_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
-        
-        self.bg_music_label = ttk.Label(bg_music_frame, text="No background music selected", 
-                                      foreground=COLOR_UNSELECTED)
-        self.bg_music_label.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
-        
-        bg_music_btn = ttk.Button(bg_music_frame, text="Browse Music", 
-                               command=self.browse_bg_music)
-        bg_music_btn.grid(row=0, column=1)
-        
-        clear_bg_music_btn = ttk.Button(bg_music_frame, text="Clear", 
-                                     command=self.clear_bg_music)
-        clear_bg_music_btn.grid(row=0, column=2, padx=(5, 0))
-        
-        bg_music_frame.columnconfigure(0, weight=1)
         
         # Images Section
         images_frame = ttk.LabelFrame(main_frame, text="Images", padding="10")
@@ -215,22 +200,25 @@ class VideoGeneratorGUI:
         self.audio_label.config(text="No audio file selected", foreground=COLOR_UNSELECTED)
         self.log("Audio cleared")
     
-    def browse_bg_music(self):
-        """Browse for background music file"""
-        filename = filedialog.askopenfilename(
-            title="Select Background Music File",
-            filetypes=AUDIO_EXTENSIONS
-        )
-        if filename:
-            self.bg_music_file = filename
-            self.bg_music_label.config(text=os.path.basename(filename), foreground=COLOR_SELECTED)
-            self.log(f"Background music selected: {os.path.basename(filename)}")
-    
-    def clear_bg_music(self):
-        """Clear selected background music"""
-        self.bg_music_file = None
-        self.bg_music_label.config(text="No background music selected", foreground=COLOR_UNSELECTED)
-        self.log("Background music cleared")
+    def get_random_bg_music(self):
+        """Get a random background music file from the bg folder"""
+        try:
+            # Get all audio files from bg folder
+            audio_extensions = ['.mp3', '.wav', '.m4a', '.aac', '.flac']
+            bg_files = [f for f in self.bg_music_path.glob('*') 
+                       if f.suffix.lower() in audio_extensions and f.is_file()]
+            
+            if not bg_files:
+                self.log("Warning: No background music files found in assets/bg folder")
+                return None
+            
+            # Select random file
+            selected_bg = random.choice(bg_files)
+            self.log(f"Randomly selected background music: {selected_bg.name}")
+            return selected_bg
+        except Exception as e:
+            self.log(f"Error selecting random background music: {str(e)}")
+            return None
     
     def browse_images(self):
         """Browse for multiple images"""
@@ -324,6 +312,13 @@ class VideoGeneratorGUI:
                 shutil.copy2(self.audio_file, dest)
                 self.log(f"Copied audio to: {dest}")
             
+            # Copy random background music
+            random_bg = self.get_random_bg_music()
+            if random_bg:
+                dest = self.audio_path / f"bgmusic{random_bg.suffix}"
+                shutil.copy2(random_bg, dest)
+                self.log(f"Copied background music to: {dest}")
+            
             # Process and copy images with FG/BG separation
             if self.image_files:
                 self.log(f"Processing {len(self.image_files)} images for FG/BG separation...")
@@ -372,12 +367,6 @@ class VideoGeneratorGUI:
                         dest = self.images_path / f"image_{idx}{ext}"
                         shutil.copy2(img_file, dest)
                     self.log(f"Copied {len(self.image_files)} images to assets")
-            
-            # Copy background music file
-            if self.bg_music_file:
-                dest = self.audio_path / f"bgmusic{os.path.splitext(self.bg_music_file)[1]}"
-                shutil.copy2(self.bg_music_file, dest)
-                self.log(f"Copied background music to: {dest}")
             
             # Copy caption file - always use "Untitled.json" to match Video.jsx expectation
             if self.caption_file:
