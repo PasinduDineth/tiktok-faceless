@@ -15,8 +15,11 @@ if (fs.existsSync(imagesDir)) {
   images = fs.readdirSync(imagesDir)
     .filter((f) => /\.(jpg|jpeg|png|webp)$/i.test(f) && f !== "placeholder.png")
     .sort((a, b) => {
-      const na = parseInt((a.match(/_(\d+)\./) || [])[1] || "0", 10);
-      const nb = parseInt((b.match(/_(\d+)\./) || [])[1] || "0", 10);
+      // Extract number from patterns like: image_1.jpg, image_1_FG.png, image_1_BG.png, 1.jpg, etc.
+      const matchA = a.match(/_(\d+)(?:_(?:FG|BG))?\./) || a.match(/^(\d+)\./);
+      const matchB = b.match(/_(\d+)(?:_(?:FG|BG))?\./) || b.match(/^(\d+)\./);
+      const na = parseInt((matchA || [])[1] || "0", 10);
+      const nb = parseInt((matchB || [])[1] || "0", 10);
       return na - nb;
     })
     // Use relative paths from public folder for staticFile()
