@@ -14,7 +14,7 @@ try:
 except ImportError:
     # Default settings if config.py is not found
     WINDOW_WIDTH = 700
-    WINDOW_HEIGHT = 600
+    WINDOW_HEIGHT = 700
     WINDOW_TITLE = "TikTok Faceless Video Generator"
     AUDIO_EXTENSIONS = [("Audio Files", "*.mp3 *.wav *.m4a *.aac *.flac"), ("All Files", "*.*")]
     IMAGE_EXTENSIONS = [("Image Files", "*.jpg *.jpeg *.png *.webp"), ("All Files", "*.*")]
@@ -31,6 +31,7 @@ except ImportError:
     LOG_TEXT_HEIGHT = 8
     CONFIRM_BEFORE_RENDER = True
     AUTO_CLEANUP_AFTER_SAVE = True
+    MAX_AUDIO_CAPTION_PAIRS = 4
 
 
 class VideoGeneratorGUI:
@@ -52,10 +53,9 @@ class VideoGeneratorGUI:
         self.images_path.mkdir(parents=True, exist_ok=True)
         self.output_path.mkdir(parents=True, exist_ok=True)
         
-        # Variables to store file paths
-        self.audio_file = None
+        # Variables to store file paths - now supporting multiple audio/caption pairs
+        self.audio_caption_pairs = []  # List of tuples: (audio_file, caption_file)
         self.image_files = []
-        self.caption_file = None
         self.is_rendering = False
         
         # Path to background music folder
@@ -73,23 +73,41 @@ class VideoGeneratorGUI:
                                 font=("Helvetica", 18, "bold"))
         title_label.grid(row=0, column=0, columnspan=3, pady=(0, 20))
         
-        # Audio File Section
-        audio_frame = ttk.LabelFrame(main_frame, text="Audio File", padding="10")
-        audio_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        # Audio/Caption Pairs Section
+        pairs_frame = ttk.LabelFrame(main_frame, text=f"Audio/Caption Pairs (Max {MAX_AUDIO_CAPTION_PAIRS})", padding="10")
+        pairs_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
         
-        self.audio_label = ttk.Label(audio_frame, text="No audio file selected", 
+        self.pairs_label = ttk.Label(pairs_frame, text="No audio/caption pairs added", 
                                       foreground=COLOR_UNSELECTED)
-        self.audio_label.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
+        self.pairs_label.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
         
-        audio_btn = ttk.Button(audio_frame, text="Browse Audio", 
-                               command=self.browse_audio)
-        audio_btn.grid(row=0, column=1)
+        add_pair_btn = ttk.Button(pairs_frame, text="Add Pair", 
+                                  command=self.add_audio_caption_pair)
+        add_pair_btn.grid(row=0, column=1)
         
-        clear_audio_btn = ttk.Button(audio_frame, text="Clear", 
-                                     command=self.clear_audio)
-        clear_audio_btn.grid(row=0, column=2, padx=(5, 0))
+        clear_pairs_btn = ttk.Button(pairs_frame, text="Clear All", 
+                                      command=self.clear_all_pairs)
+        clear_pairs_btn.grid(row=0, column=2, padx=(5, 0))
         
-        audio_frame.columnconfigure(0, weight=1)
+        # Pairs list
+        pairs_list_frame = ttk.Frame(pairs_frame)
+        pairs_list_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), 
+                               pady=(10, 0))
+        
+        self.pairs_listbox = tk.Listbox(pairs_list_frame, height=6)
+        self.pairs_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        pairs_scrollbar = ttk.Scrollbar(pairs_list_frame, orient=tk.VERTICAL, 
+                                        command=self.pairs_listbox.yview)
+        pairs_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.pairs_listbox.config(yscrollcommand=pairs_scrollbar.set)
+        
+        # Remove selected pair button
+        remove_pair_btn = ttk.Button(pairs_frame, text="Remove Selected", 
+                                      command=self.remove_selected_pair)
+        remove_pair_btn.grid(row=2, column=0, columnspan=3, pady=(5, 0))
+        
+        pairs_frame.columnconfigure(0, weight=1)
         
         # Images Section
         images_frame = ttk.LabelFrame(main_frame, text="Images", padding="10")
@@ -122,28 +140,9 @@ class VideoGeneratorGUI:
         
         images_frame.columnconfigure(0, weight=1)
         
-        # Caption File Section
-        caption_frame = ttk.LabelFrame(main_frame, text="Caption File (Optional)", 
-                                       padding="10")
-        caption_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
-        
-        self.caption_label = ttk.Label(caption_frame, text="No caption file selected", 
-                                        foreground=COLOR_UNSELECTED)
-        self.caption_label.grid(row=0, column=0, sticky=(tk.W, tk.E), padx=(0, 10))
-        
-        caption_btn = ttk.Button(caption_frame, text="Browse Caption", 
-                                 command=self.browse_caption)
-        caption_btn.grid(row=0, column=1)
-        
-        clear_caption_btn = ttk.Button(caption_frame, text="Clear", 
-                                       command=self.clear_caption)
-        clear_caption_btn.grid(row=0, column=2, padx=(5, 0))
-        
-        caption_frame.columnconfigure(0, weight=1)
-        
         # Progress Section
         progress_frame = ttk.Frame(main_frame)
-        progress_frame.grid(row=5, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=20)
+        progress_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=20)
         
         self.progress_label = ttk.Label(progress_frame, text="Ready to render", 
                                         foreground=COLOR_READY)
@@ -156,11 +155,11 @@ class VideoGeneratorGUI:
         self.render_btn = ttk.Button(main_frame, text="Render Video", 
                                      command=self.render_video, 
                                      style="Accent.TButton")
-        self.render_btn.grid(row=6, column=0, columnspan=3, pady=10)
+        self.render_btn.grid(row=5, column=0, columnspan=3, pady=10)
         
         # Status/Log Section
         log_frame = ttk.LabelFrame(main_frame, text="Status Log", padding="10")
-        log_frame.grid(row=7, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), 
+        log_frame.grid(row=6, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), 
                        pady=5)
         
         self.log_text = tk.Text(log_frame, height=LOG_TEXT_HEIGHT, wrap=tk.WORD)
@@ -172,7 +171,7 @@ class VideoGeneratorGUI:
         self.log_text.config(yscrollcommand=log_scrollbar.set)
         
         main_frame.columnconfigure(0, weight=1)
-        main_frame.rowconfigure(7, weight=1)
+        main_frame.rowconfigure(6, weight=1)
         
         self.log("Application started successfully")
         self.log(f"Project root: {self.project_root}")
@@ -183,22 +182,118 @@ class VideoGeneratorGUI:
         self.log_text.see(tk.END)
         self.root.update_idletasks()
     
-    def browse_audio(self):
-        """Browse for audio file"""
-        filename = filedialog.askopenfilename(
+    def add_audio_caption_pair(self):
+        """Add a new audio/caption pair"""
+        if len(self.audio_caption_pairs) >= MAX_AUDIO_CAPTION_PAIRS:
+            messagebox.showwarning("Limit Reached", 
+                                  f"Maximum {MAX_AUDIO_CAPTION_PAIRS} audio/caption pairs allowed!")
+            return
+        
+        # Browse for audio file
+        audio_file = filedialog.askopenfilename(
             title="Select Audio File",
             filetypes=AUDIO_EXTENSIONS
         )
-        if filename:
-            self.audio_file = filename
-            self.audio_label.config(text=os.path.basename(filename), foreground=COLOR_SELECTED)
-            self.log(f"Audio selected: {os.path.basename(filename)}")
+        if not audio_file:
+            return
+        
+        # Browse for caption file
+        caption_file = filedialog.askopenfilename(
+            title="Select Caption File for this Audio",
+            filetypes=CAPTION_EXTENSIONS
+        )
+        if not caption_file:
+            messagebox.showwarning("Caption Required", 
+                                  "Caption file is required for each audio file!")
+            return
+        
+        # Validate caption file
+        try:
+            with open(caption_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # Check if it's an array (correct format)
+            if not isinstance(data, list):
+                messagebox.showwarning("Format Warning", 
+                    "Caption file should be a JSON array, not an object.\n\n"
+                    "See CAPTION_TROUBLESHOOTING.md for correct format.")
+                self.log("Warning: Caption file is not an array")
+            
+            # Check for correct field names
+            if data and len(data) > 0:
+                first_item = data[0]
+                if 'start' in first_item or 'end' in first_item:
+                    messagebox.showwarning("Format Warning",
+                        "Caption file uses 'start'/'end' but should use 'startMs'/'endMs'.\n\n"
+                        "See CAPTION_TROUBLESHOOTING.md for correct format.")
+                    self.log("Warning: Caption uses 'start'/'end' instead of 'startMs'/'endMs'")
+                elif 'startMs' in first_item and 'endMs' in first_item:
+                    self.log(f"Caption format validated: {len(data)} captions found")
+        except json.JSONDecodeError as e:
+            messagebox.showerror("Invalid File", 
+                f"The selected file is not a valid JSON file.\n\nError: {str(e)}")
+            self.log(f"Error: Invalid JSON file - {str(e)}")
+            return
+        
+        # Add the pair
+        self.audio_caption_pairs.append((audio_file, caption_file))
+        
+        # Update listbox
+        audio_name = os.path.basename(audio_file)
+        caption_name = os.path.basename(caption_file)
+        self.pairs_listbox.insert(tk.END, f"{len(self.audio_caption_pairs)}. Audio: {audio_name} | Caption: {caption_name}")
+        
+        # Update label
+        self.pairs_label.config(text=f"{len(self.audio_caption_pairs)} pair(s) added", 
+                                foreground=COLOR_SELECTED)
+        
+        self.log(f"Added pair {len(self.audio_caption_pairs)}: {audio_name} + {caption_name}")
+    
+    def remove_selected_pair(self):
+        """Remove selected pair from the list"""
+        selection = self.pairs_listbox.curselection()
+        if not selection:
+            messagebox.showinfo("No Selection", "Please select a pair to remove")
+            return
+        
+        index = selection[0]
+        audio_file, caption_file = self.audio_caption_pairs[index]
+        
+        # Remove from list
+        del self.audio_caption_pairs[index]
+        
+        # Update listbox
+        self.pairs_listbox.delete(0, tk.END)
+        for i, (audio, caption) in enumerate(self.audio_caption_pairs, start=1):
+            audio_name = os.path.basename(audio)
+            caption_name = os.path.basename(caption)
+            self.pairs_listbox.insert(tk.END, f"{i}. Audio: {audio_name} | Caption: {caption_name}")
+        
+        # Update label
+        if self.audio_caption_pairs:
+            self.pairs_label.config(text=f"{len(self.audio_caption_pairs)} pair(s) added", 
+                                    foreground=COLOR_SELECTED)
+        else:
+            self.pairs_label.config(text="No audio/caption pairs added", 
+                                    foreground=COLOR_UNSELECTED)
+        
+        self.log(f"Removed pair: {os.path.basename(audio_file)}")
+    
+    def clear_all_pairs(self):
+        """Clear all audio/caption pairs"""
+        self.audio_caption_pairs = []
+        self.pairs_listbox.delete(0, tk.END)
+        self.pairs_label.config(text="No audio/caption pairs added", 
+                                foreground=COLOR_UNSELECTED)
+        self.log("Cleared all audio/caption pairs")
+    
+    def browse_audio(self):
+        """Browse for audio file (deprecated - kept for compatibility)"""
+        pass
     
     def clear_audio(self):
-        """Clear selected audio"""
-        self.audio_file = None
-        self.audio_label.config(text="No audio file selected", foreground=COLOR_UNSELECTED)
-        self.log("Audio cleared")
+        """Clear selected audio (deprecated - kept for compatibility)"""
+        pass
     
     def get_random_bg_music(self):
         """Get a random background music file from the bg folder"""
@@ -243,48 +338,12 @@ class VideoGeneratorGUI:
         self.log("Images cleared")
     
     def browse_caption(self):
-        """Browse for caption JSON file"""
-        filename = filedialog.askopenfilename(
-            title="Select Caption File",
-            filetypes=CAPTION_EXTENSIONS
-        )
-        if filename:
-            # Validate JSON file
-            try:
-                with open(filename, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                
-                # Check if it's an array (correct format)
-                if not isinstance(data, list):
-                    messagebox.showwarning("Format Warning", 
-                        "Caption file should be a JSON array, not an object.\n\n"
-                        "See CAPTION_TROUBLESHOOTING.md for correct format.")
-                    self.log("Warning: Caption file is not an array")
-                
-                # Check for correct field names
-                if data and len(data) > 0:
-                    first_item = data[0]
-                    if 'start' in first_item or 'end' in first_item:
-                        messagebox.showwarning("Format Warning",
-                            "Caption file uses 'start'/'end' but should use 'startMs'/'endMs'.\n\n"
-                            "See CAPTION_TROUBLESHOOTING.md for correct format.")
-                        self.log("Warning: Caption uses 'start'/'end' instead of 'startMs'/'endMs'")
-                    elif 'startMs' in first_item and 'endMs' in first_item:
-                        self.log(f"Caption format validated: {len(data)} captions found")
-                
-                self.caption_file = filename
-                self.caption_label.config(text=os.path.basename(filename), foreground=COLOR_SELECTED)
-                self.log(f"Caption selected: {os.path.basename(filename)}")
-            except json.JSONDecodeError as e:
-                messagebox.showerror("Invalid File", 
-                    f"The selected file is not a valid JSON file.\n\nError: {str(e)}")
-                self.log(f"Error: Invalid JSON file - {str(e)}")
+        """Browse for caption JSON file (deprecated - kept for compatibility)"""
+        pass
     
     def clear_caption(self):
-        """Clear selected caption"""
-        self.caption_file = None
-        self.caption_label.config(text="No caption file selected", foreground=COLOR_UNSELECTED)
-        self.log("Caption cleared")
+        """Clear selected caption (deprecated - kept for compatibility)"""
+        pass
     
     def clear_assets_folders(self):
         """Clear all files in assets/audio and assets/images folders"""
@@ -303,13 +362,13 @@ class VideoGeneratorGUI:
         except Exception as e:
             self.log(f"Error clearing assets: {str(e)}")
     
-    def copy_files_to_assets(self):
-        """Copy selected files to assets folders"""
+    def copy_files_to_assets(self, audio_file, caption_file):
+        """Copy selected files to assets folders for a specific audio/caption pair"""
         try:
             # Copy audio file
-            if self.audio_file:
-                dest = self.audio_path / os.path.basename(self.audio_file)
-                shutil.copy2(self.audio_file, dest)
+            if audio_file:
+                dest = self.audio_path / os.path.basename(audio_file)
+                shutil.copy2(audio_file, dest)
                 self.log(f"Copied audio to: {dest}")
             
             # Copy random background music
@@ -319,7 +378,7 @@ class VideoGeneratorGUI:
                 shutil.copy2(random_bg, dest)
                 self.log(f"Copied background music to: {dest}")
             
-            # Process and copy images with FG/BG separation
+            # Process and copy images with FG/BG separation (only if images exist)
             if self.image_files:
                 self.log(f"Processing {len(self.image_files)} images for FG/BG separation...")
                 
@@ -369,9 +428,9 @@ class VideoGeneratorGUI:
                     self.log(f"Copied {len(self.image_files)} images to assets")
             
             # Copy caption file - always use "Untitled.json" to match Video.jsx expectation
-            if self.caption_file:
+            if caption_file:
                 dest = self.audio_path / "Untitled.json"
-                shutil.copy2(self.caption_file, dest)
+                shutil.copy2(caption_file, dest)
                 self.log(f"Copied caption to: {dest}")
             
             return True
@@ -444,6 +503,27 @@ class VideoGeneratorGUI:
                 return False
         return False
     
+    def save_video_with_name(self, audio_filename, output_dir):
+        """Save the rendered video with a specific name based on audio file"""
+        video_file = self.output_path / "video.mp4"
+        
+        if not video_file.exists():
+            self.log("Error: Rendered video not found!")
+            return False
+        
+        # Generate output filename from audio filename (without extension)
+        base_name = os.path.splitext(os.path.basename(audio_filename))[0]
+        output_filename = f"{base_name}.mp4"
+        save_path = Path(output_dir) / output_filename
+        
+        try:
+            shutil.copy2(video_file, save_path)
+            self.log(f"Video saved to: {save_path}")
+            return True
+        except Exception as e:
+            self.log(f"Error saving video: {str(e)}")
+            return False
+    
     def cleanup_temp_files(self):
         """Clean up temporary files and clear assets"""
         try:
@@ -478,15 +558,30 @@ class VideoGeneratorGUI:
             return
         
         # Validate inputs
-        if not self.audio_file and not self.image_files:
+        if not self.audio_caption_pairs:
             messagebox.showwarning("Missing Files", 
-                                  "Please select at least an audio file or images!")
+                                  "Please add at least one audio/caption pair!")
             return
+        
+        if not self.image_files:
+            messagebox.showwarning("Missing Files", 
+                                  "Please select images!")
+            return
+        
+        # Ask user to select output directory
+        output_dir = filedialog.askdirectory(
+            title="Select Output Directory for Videos"
+        )
+        if not output_dir:
+            return
+        
+        self.output_dir = output_dir
         
         # Confirm render
         if CONFIRM_BEFORE_RENDER:
             confirm = messagebox.askyesno("Confirm Render", 
-                                         "Start rendering video?\n\nThis may take several minutes.")
+                                         f"Start rendering {len(self.audio_caption_pairs)} video(s)?\n\n"
+                                         f"This may take several minutes per video.")
             if not confirm:
                 return
         
@@ -501,53 +596,90 @@ class VideoGeneratorGUI:
         thread.start()
     
     def render_thread(self):
-        """Thread function for rendering"""
+        """Thread function for rendering multiple videos"""
         try:
-            # Step 1: Clear old assets
-            self.log("Step 1: Clearing old assets...")
-            self.clear_assets_folders()
+            total_pairs = len(self.audio_caption_pairs)
+            successful_renders = 0
             
-            # Step 2: Copy new files to assets
-            self.log("Step 2: Copying files to assets...")
-            if not self.copy_files_to_assets():
+            # Process each audio/caption pair
+            for idx, (audio_file, caption_file) in enumerate(self.audio_caption_pairs, start=1):
+                audio_name = os.path.basename(audio_file)
+                self.log(f"\n{'='*60}")
+                self.log(f"Processing video {idx}/{total_pairs}: {audio_name}")
+                self.log(f"{'='*60}")
+                
+                # Step 1: Clear old assets
+                self.log(f"Step 1: Clearing old assets...")
+                self.clear_assets_folders()
+                
+                # Step 2: Copy files for this specific pair
+                self.log(f"Step 2: Copying files to assets...")
+                if not self.copy_files_to_assets(audio_file, caption_file):
+                    self.log(f"Failed to copy files for {audio_name}, skipping...")
+                    continue
+                
+                # Step 3: Run render
+                self.log(f"Step 3: Running render for {audio_name}...")
+                success = self.run_render()
+                
+                if not success:
+                    self.log(f"Render failed for {audio_name}, skipping...")
+                    continue
+                
+                # Step 4: Save video with audio filename
+                self.log(f"Step 4: Saving video as {os.path.splitext(audio_name)[0]}.mp4...")
+                if self.save_video_with_name(audio_file, self.output_dir):
+                    successful_renders += 1
+                    self.log(f"✓ Successfully rendered and saved video {idx}/{total_pairs}")
+                else:
+                    self.log(f"Failed to save video for {audio_name}")
+                
+                # Clean up assets for next iteration
+                self.clear_assets_folders()
+            
+            # Step 5: Final cleanup
+            self.log("\nStep 5: Final cleanup...")
+            self.cleanup_temp_files()
+            
+            # Summary
+            self.log(f"\n{'='*60}")
+            self.log(f"Rendering complete! {successful_renders}/{total_pairs} videos successfully generated")
+            self.log(f"Output directory: {self.output_dir}")
+            self.log(f"{'='*60}")
+            
+            # Clear UI selections
+            self.root.after(0, self.clear_all_selections)
+            
+            # Show completion message
+            if successful_renders == total_pairs:
+                self.root.after(0, lambda: messagebox.showinfo("Success", 
+                    f"All {total_pairs} videos rendered successfully!\n\n"
+                    f"Saved to: {self.output_dir}"))
+                self.finish_render(True)
+            elif successful_renders > 0:
+                self.root.after(0, lambda: messagebox.showwarning("Partial Success", 
+                    f"Rendered {successful_renders} out of {total_pairs} videos.\n\n"
+                    f"Check the log for details.\n\n"
+                    f"Saved to: {self.output_dir}"))
+                self.finish_render(True)
+            else:
+                self.root.after(0, lambda: messagebox.showerror("Failed", 
+                    "No videos were successfully rendered.\n\n"
+                    "Check the log for details."))
                 self.finish_render(False)
-                return
-            
-            # Step 3: Run render
-            self.log("Step 3: Running render...")
-            success = self.run_render()
-            
-            if not success:
-                self.finish_render(False)
-                return
-            
-            # Step 4: Save video
-            self.log("Step 4: Waiting for user to save video...")
-            self.root.after(0, self.handle_save_video)
             
         except Exception as e:
             self.log(f"Unexpected error: {str(e)}")
             self.finish_render(False)
     
+    def clear_all_selections(self):
+        """Clear all UI selections after rendering"""
+        self.clear_all_pairs()
+        self.clear_images()
+    
     def handle_save_video(self):
-        """Handle video saving in main thread"""
-        saved = self.save_video()
-        
-        if saved:
-            # Step 5: Cleanup
-            self.log("Step 5: Cleaning up...")
-            self.cleanup_temp_files()
-            
-            # Clear UI selections
-            self.clear_audio()
-            self.clear_images()
-            self.clear_caption()
-            
-            self.log("All done! Ready for next video.")
-            self.finish_render(True)
-        else:
-            self.log("Video not saved. Keeping files for review.")
-            self.finish_render(False)
+        """Handle video saving in main thread (deprecated - kept for compatibility)"""
+        pass
     
     def finish_render(self, success):
         """Finish rendering and update UI"""

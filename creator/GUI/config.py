@@ -6,7 +6,7 @@ You can customize these settings to change the behavior of the GUI.
 
 # GUI Window Settings
 WINDOW_WIDTH = 700
-WINDOW_HEIGHT = 600
+WINDOW_HEIGHT = 700
 WINDOW_TITLE = "TikTok Faceless Video Generator"
 
 # File Extensions
@@ -35,6 +35,7 @@ ENABLE_DETAILED_LOGGING = True
 # Render Settings
 CONFIRM_BEFORE_RENDER = True
 AUTO_CLEANUP_AFTER_SAVE = True
+MAX_AUDIO_CAPTION_PAIRS = 4  # Maximum number of audio/caption pairs for multi-video generation
 
 # UI Colors (optional - tkinter uses system theme by default)
 # These are used for status messages
